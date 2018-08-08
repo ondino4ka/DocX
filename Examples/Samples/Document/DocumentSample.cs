@@ -112,6 +112,53 @@ namespace Xceed.Words.NET.Examples
     }
 
     /// <summary>
+    /// Add app properties to a document.
+    /// </summary>
+    public static void AddAppProperties()
+    {
+      Console.WriteLine("\tAddAppProperties()");
+    
+      // Create a new document.
+      using (DocX document = DocX.Create(DocumentSampleOutputDirectory + @"AddAppProperties.docx"))
+      {
+        // Add a title
+        document.InsertParagraph("Adding App Properties to a document").FontSize(15d).SpacingAfter(50d).Alignment = Alignment.center;
+    
+        // Add a paragraph displaying the number of app properties.
+        var p = document.InsertParagraph("This document contains ").Append(document.AppProperties.Count.ToString()).Append(" App Properties :");
+        p.SpacingAfter(30);
+
+        // Add app properties.
+        document.AddAppProperty("Template", "Normal.dotm");
+        document.AddAppProperty("TotalTime", "0");
+        document.AddAppProperty("Pages", "0");
+        document.AddAppProperty("Words", "0");
+        document.AddAppProperty("Characters", "0");
+        document.AddAppProperty("Application", "Microsoft Office Word");
+        document.AddAppProperty("DocSecurity", "0");
+        document.AddAppProperty("Lines", "0");
+        document.AddAppProperty("Paragraphs", "0");
+        document.AddAppProperty("ScaleCrop", "false");
+        document.AddAppProperty("Company", "Xceed");
+        document.AddAppProperty("LinksUpToDate", "false");
+        document.AddAppProperty("CharactersWithSpaces", "0");
+        document.AddAppProperty("SharedDoc", "false");
+        document.AddAppProperty("HyperlinksChanged", "false");
+        document.AddAppProperty("AppVersion", "16.0000");
+
+        // Display each propertie's name and value.
+        foreach (var prop in document.AppProperties)
+        {
+          document.InsertParagraph(prop.Key).Append(" = ").Append(prop.Value).AppendLine();
+        }
+        
+        // Save this document to disk.
+        document.Save();
+        Console.WriteLine("\tCreated: AddAppProperties.docx\n");
+      }
+    }
+
+    /// <summary>
     /// Add a template to a document.
     /// </summary>
     public static void ApplyTemplate()

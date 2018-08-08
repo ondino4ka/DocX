@@ -39,6 +39,7 @@ namespace Xceed.Words.NET
     static internal XNamespace r = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     static internal XNamespace m = "http://schemas.openxmlformats.org/officeDocument/2006/math";
     static internal XNamespace customPropertiesSchema = "http://schemas.openxmlformats.org/officeDocument/2006/custom-properties";
+    static internal XNamespace extendedPropertiesSchema = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties";
     static internal XNamespace customVTypesSchema = "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes";
 
     static internal XNamespace wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
@@ -688,6 +689,29 @@ namespace Xceed.Words.NET
 
         return new Dictionary<string, string>();
       }
+    }
+    /// <summary>
+    /// Returns the list of document app properties with corresponding values.
+    /// </summary>
+    public Dictionary<string, string> AppProperties
+    {
+      get
+      {
+        if (_package.PartExists(new Uri("/docProps/app.xml", UriKind.Relative)))
+        {
+          PackagePart docProps_app = _package.GetPart(new Uri("/docProps/app.xml", UriKind.Relative));
+          XDocument appPropDoc;
+          using (TextReader tr = new StreamReader(docProps_app.GetStream(FileMode.Open, FileAccess.Read)))
+              appPropDoc = XDocument.Load(tr, LoadOptions.PreserveWhitespace);
+          // Get all of the app properties in this document
+          return (from docProperty in appPropDoc.Root.Elements()
+              select
+                  new KeyValuePair<string, string>(
+                      docProperty.Name.LocalName,
+                      docProperty.Value)).ToDictionary(p => p.Key, v => v.Value);
+         }
+         return new Dictionary<string, string>();
+       }
     }
 
     /// <summary>
@@ -2395,6 +2419,91 @@ namespace Xceed.Words.NET
       DocX.UpdateCorePropertyValue( this, propertyLocalName, propertyValue );
     }
 
+    /// <summary>
+    /// Add a app property to this document. If a app property already exists with the same name it will be replaced. Core property names are case insensitive.
+    /// </summary>
+    /// <remarks>
+    /// Valid property { "Template", "TotalTime", "Pages", "Words", "Characters", "Application", "DocSecurity", "Lines", "Paragraphs", "ScaleCrop", "Company", "LinksUpToDate", "CharactersWithSpaces", "SharedDoc", "HyperlinksChanged", "AppVersion" }
+    /// </remarks>
+    ///<param name="propertyName">The property name.</param>
+    ///<param name="propertyValue">The property value.</param>
+    ///<example>
+    /// Add a app properties of each type to a document.
+    /// <code>
+    /// // Load Example.docx
+    /// using (DocX document = DocX.Load(@"C:\Example\Test.docx"))
+    /// {
+    ///     // If this document does not contain a core property called 'TotalTime', create one.
+    ///     if (!document.CoreProperties.ContainsKey("TotalTime"))
+    ///     {
+    ///         // Create a new app property called 'TotalTime' and set its value.
+    ///         document.AddCoreProperty("TotalTime", "100");
+    ///     }
+    ///
+    ///     // Get this documents app property called 'forename'.
+    ///     string totalTimeValue = document.AppProperties["TotalTime"];
+    ///
+    ///     // Print all of the information about this app property to Console.
+    ///     Console.WriteLine(string.Format("Name: '{0}', Value: '{1}'\nPress any key...", "totalTime", totalTimeValue));
+    ///     
+    ///     // Save all changes made to this document.
+    ///     document.Save();
+    /// } // Release this document from memory.
+    ///
+    /// // Wait for the user to press a key before exiting.
+    /// Console.ReadKey();
+    /// </code>
+    /// </example>
+    /// <seealso cref="CoreProperties"/>
+    /// <seealso cref="CustomProperty"/>
+    /// <seealso cref="CustomProperties"/>
+    public void AddAppProperty(string propertyName, string propertyValue)
+    {
+      string[] validAppProperties =
+      {
+        "Template", "TotalTime", "Pages", "Words", "Characters", "Application", "DocSecurity", "Lines", "Paragraphs",
+        "ScaleCrop", "Company", "LinksUpToDate", "CharactersWithSpaces", "SharedDoc", "HyperlinksChanged", "AppVersion"
+      };
+      
+      // Check on valid property.
+      if (!validAppProperties.Contains(propertyName))
+      {
+        throw new ArgumentException($"Invalid property {propertyName}", propertyName);
+      }
+      
+      // If this document does not contain a appPropertyPart create one.
+      if (!_package.PartExists(new Uri("/docProps/app.xml", UriKind.Relative)))
+      {
+        HelperFunctions.CreateAppPropertiesPart(this);
+      }
+      
+      XDocument appPropDoc;
+      var appPropPart = _package.GetPart(new Uri("/docProps/app.xml", UriKind.Relative));
+      using (TextReader tr = new StreamReader(appPropPart.GetStream(FileMode.Open, FileAccess.Read)))
+      {
+        appPropDoc = XDocument.Load(tr);
+      }
+      
+      var appPropElement =
+        (from propElement in appPropDoc.Root.Elements()
+         where propElement.Name.LocalName.Equals(propertyName)
+         select propElement).SingleOrDefault();
+      
+      if (appPropElement != null)
+      {
+        appPropElement.SetValue(propertyValue);
+      }
+      else
+      {
+        appPropDoc.Root.Add(new XElement(XName.Get(propertyName, extendedPropertiesSchema.NamespaceName), propertyValue));
+      }
+      
+      using (TextWriter tw = new StreamWriter(new PackagePartStream(appPropPart.GetStream(FileMode.Create, FileAccess.Write))))
+      {
+        appPropDoc.Save(tw);
+      }
+    }
+    
     /// <summary>
     /// Add a custom property to this document. If a custom property already exists with the same name it will be replace. CustomProperty names are case insensitive.
     /// </summary>

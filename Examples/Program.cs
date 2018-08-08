@@ -35,6 +35,7 @@ namespace Xceed.Words.NET.Examples
 
       //Document
       DocumentSample.AddCustomProperties();
+      DocumentSample.AddAppProperties();
       DocumentSample.ReplaceText();
       DocumentSample.ApplyTemplate();
       DocumentSample.AppendDocument();
